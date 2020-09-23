@@ -2,9 +2,17 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
 import sqlite3
-from sqlite3 import Error
+#from sqlite3 import Error
 
-##TODO the sqlite stuff doesn't work at all
+def create_connection():
+    """ create a database connection to a SQLite database """
+    conn = None
+    try:
+        conn = sqlite3.connect('psu_covid_dash_checker.sqlite3')
+        print(sqlite3.version)
+    except:
+        print ("error connecting to db")
+    return conn
 
 options = Options()
 options.headless = True
@@ -36,17 +44,6 @@ ondemand_total_awaiting_results = number_list[0]
 random_total_tests_performed = number_list[5]
 random_total_positive_cases = number_list[4]
 random_total_awaiting_results = number_list[3]
-
-def create_connection():
-    """ create a database connection to a SQLite database """
-    conn = None
-    try:
-        conn = sqlite3.connect('psu_covid_dash_checker.sqlite3')
-        print(sqlite3.version)
-    except:
-        print ("error connecting to db")
-    return conn
-
 
 # create a database connection
 conn = create_connection()
