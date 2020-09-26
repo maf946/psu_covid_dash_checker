@@ -1,7 +1,12 @@
 #selenium imports
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+
 import time
+from datetime import datetime
+
+import signal
+import sys
 
 #sqlite import
 import sqlite3
@@ -11,11 +16,18 @@ import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
+def handler(signum, frame):
+    print("Quitting time")
+    cur.close()
+    driver.quit()
+
+signal.signal(signal.SIGINT, handler)
+
 def send_email_update():
     message = Mail(
         from_email='maf946@psu.edu',
         to_emails='mfriedenberg@gmail.com',
-        subject='PSU Covid Dashboard Update',
+        subject=' PSU Covid Dashboard Update',
         html_content='New overall total positive number: ' + str(overall_total_positive))
     try:
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
@@ -70,55 +82,66 @@ def create_connection():
         print ("error connecting to db")
     return conn
 
+options = Options()
+options.headless = True
+
+print("Starting up…")
+
 # create a database connection
 conn = create_connection()
 cur = conn.cursor()
 
-query_string = "select overall_total_positive from covid_data order by update_time desc limit 1"
-last_recorded_overall_total_positive = int(cur.execute(query_string).fetchone()[0])
-
-options = Options()
-options.headless = True
-
 driver = webdriver.Chrome(executable_path='./chromedriver', options=options)
 url ='https://app.powerbi.com/view?r=eyJrIjoiMDFhMzI2YzQtNmQwNC00YjgzLWFjMzAtZmFlNGQyZGZiZGJhIiwidCI6IjdjZjQ4ZDQ1LTNkZGItNDM4OS1hOWMxLWMxMTU1MjZlYjUyZSIsImMiOjF9'
-driver.get(url)
-time.sleep(5)
 
-iframe_list =  driver.find_elements_by_tag_name("iframe")
+while 1:
+    if (datetime.today().weekday() == 1 or datetime.today().weekday() == 4): #check if today is Tuesday or Friday
+        query_string = "select overall_total_positive from covid_data order by update_time desc limit 1"
+        last_recorded_overall_total_positive = int(cur.execute(query_string).fetchone()[0])
 
-number_list = []
-for i in iframe_list:
-    driver.switch_to.frame(i)
-    text_list = driver.find_elements_by_tag_name("text")
-    number_list.append(text_list[0].text.replace(',', '')) #remove commas, as in the case of "1,335 cases"
-    time.sleep(.25)
-    driver.switch_to.default_content()
-driver.quit()
+        driver.get(url)
+        time.sleep(5)
 
-overall_total_positive = int(number_list[10])
-overall_current_active = number_list[12]
-overall_cases_no_longer_active = number_list[11]
-overall_persons_currently_in_quarantine = number_list[7]
-overall_persons_currently_in_isolation = number_list[8]
-ondemand_total_tests_performed = number_list[2]
-ondemand_total_positive_cases = number_list[1]
-ondemand_total_awaiting_results = number_list[0]
-random_total_tests_performed = number_list[5]
-random_total_positive_cases = number_list[4]
-random_total_awaiting_results = number_list[3]
+        iframe_list =  driver.find_elements_by_tag_name("iframe")
 
-# overall_total_positive = overall_total_positive + 1 # DEBUG LINE, TO TEST FOR WHEN THERE ARE UPDATES
+        try:
+            number_list = []
+            for i in iframe_list:
+                driver.switch_to.frame(i)
+                text_list = driver.find_elements_by_tag_name("text")
+                number_list.append(text_list[0].text.replace(',', '')) #remove commas, as in the case of "1,335 cases"
+                time.sleep(.25)
+                driver.switch_to.default_content()
 
-if (int(overall_total_positive) != last_recorded_overall_total_positive):
-    print("There has been a change")
-    print("Overall total positive: ", overall_total_positive)
-    print("Last recorded: ", last_recorded_overall_total_positive)
-    update_database()
-    send_email_update()
-    print_updated_numbers()
-else:
-    print ("No change in the recorded numbers")
+            ####
+            overall_total_positive = int(number_list[10])
+            overall_current_active = number_list[12]
+            overall_cases_no_longer_active = number_list[11]
+            overall_persons_currently_in_quarantine = number_list[7]
+            overall_persons_currently_in_isolation = number_list[8]
+            ondemand_total_tests_performed = number_list[2]
+            ondemand_total_positive_cases = number_list[1]
+            ondemand_total_awaiting_results = number_list[0]
+            random_total_tests_performed = number_list[5]
+            random_total_positive_cases = number_list[4]
+            random_total_awaiting_results = number_list[3]
+
+            #overall_total_positive = overall_total_positive + 1 # DEBUG LINE, TO TEST FOR WHEN THERE ARE UPDATES
+
+            if (overall_total_positive != last_recorded_overall_total_positive):
+                print("There has been a change")
+                print("Overall total positive: ", overall_total_positive)
+                print("Last recorded: ", last_recorded_overall_total_positive)
+                update_database()
+                send_email_update()
+                print_updated_numbers()
+            else:
+                now = datetime.now()
+                dt_string = now.strftime("%Y-%m-%d %I:%M:%S %p:")
+                print (dt_string, "No change in the recorded numbers")
+        except Exception as e:
+            print("I hit an error", e)
+        time.sleep(30)
 
 
 
