@@ -1,8 +1,16 @@
+# TODO: add GitHub on DigitalOcean
+# TODO: sqlite: include statements to create the table IF NOT EXISTS
+# TODO: save a screenshot on update, and include it in the email
+# TODO: check RAM history and see if I can move to droplet with less RAM
+# TODO: fix so you can run both test-mode and run-once
+
+from emailFunctions import *
+from databaseFunctions import *
+from printFunctions import *
+
 #selenium imports
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-
-executable_path = './chromedriver'
 
 import time
 from datetime import datetime
@@ -13,128 +21,77 @@ import argparse
 
 from colorama import Fore, Back, Style
 
-#sqlite import
-import sqlite3
-
-#sendgrid imports
-import os
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
-
 import random
 
 import sys
 
 def handler(signum, frame):
-    print("Quitting time")
-    cur.close()
+    print("\nGoodbye")
     driver.quit()
+    quit()
 
 signal.signal(signal.SIGINT, handler)
 
-def send_email_update():
-    from_email = 'maf946@psu.edu'
-    to_email = 'mfriedenberg@gmail.com'
-    subject = 'PSU Covid Dashboard Update: ' + str(overall_total_positive)
-    if (test_mode):
-        subject = "TEST MODE: " + subject
-    html_content='See <a href=\"' + url + '\">complete dashboard</a> for more information.'
-
-    message = Mail(
-        from_email=from_email,
-        to_emails=to_email,
-        subject=subject,
-        html_content=html_content)
-    try:
-        sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-        response = sg.send(message)
-    except Exception as e:
-        print(e.message)
-
-def update_database():
-    insert_string = "INSERT INTO covid_data (overall_total_positive, overall_current_active, overall_cases_no_longer_active,  overall_persons_currently_in_quarantine, overall_persons_currently_in_isolation, ondemand_total_tests_performed, ondemand_total_positive_cases, ondemand_total_awaiting_results, random_total_tests_performed, random_total_positive_cases, random_total_awaiting_results) VALUES ("
-    insert_string += str(overall_total_positive) + ", "
-    insert_string += overall_current_active + ", "
-    insert_string += overall_cases_no_longer_active + ", "
-    insert_string += overall_persons_currently_in_quarantine + ", "
-    insert_string += overall_persons_currently_in_isolation + ", "
-    insert_string += ondemand_total_tests_performed + ", "
-    insert_string += ondemand_total_positive_cases + ", "
-    insert_string += ondemand_total_awaiting_results + ", "
-    insert_string += random_total_tests_performed + ", "
-    insert_string += random_total_positive_cases + ", "
-    insert_string += random_total_awaiting_results + ");"
-    cur.execute(insert_string)
-    conn.commit()
-
-def print_updated_numbers():
-    print("## Overall Numbers")
-    print("")
-    print ("Total Positive Cases: ", overall_total_positive)
-    print ("Current Active Cases: ", overall_current_active)
-    print ("Cases No Longer Active: ", overall_cases_no_longer_active)
-    print("")
-    print ("Persons Currently in Quarantine: ", overall_persons_currently_in_quarantine)
-    print ("Persons Currently in Isolation: ", overall_persons_currently_in_isolation)
-    print("")
-    print ("## On-Demand Testing")
-    print("")
-    print ("Total Tests Performed: ", ondemand_total_tests_performed)
-    print ("Total Positive Cases: ", ondemand_total_positive_cases)
-    print ("Total Awaiting Results: ", ondemand_total_awaiting_results)
-    print("")
-    print ("## Random Testing")
-    print("")
-    print ("Total Tests Performed: ", random_total_tests_performed)
-    print ("Total Positive Cases: ", random_total_positive_cases)
-    print ("Total Awaiting Results: ", random_total_awaiting_results)
-
-def create_connection():
-    # create a database connection to a SQLite database
-    conn = None
-    try:
-        conn = sqlite3.connect('psu_covid_dash_checker.sqlite3')
-    except:
-        print ("error connecting to db")
-    return conn
-
 options = Options()
 options.headless = True
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
+options.add_experimental_option("prefs", {"profile.managed_default_content_settings.images": 2})
+options.add_experimental_option("prefs", {"profile.default_content_setting_values.notifications": 2})
+options.add_experimental_option("prefs", {"managed_default_content_settings.stylesheets": 2})
+options.add_experimental_option("prefs", {"profile.managed_default_content_settings.plugins": 2})
+options.add_experimental_option("prefs", {"profile.managed_default_content_settings.popups": 2})
+options.add_experimental_option("prefs", {"profile.managed_default_content_settings.geolocation": 2})
+options.add_experimental_option("prefs", {"profile.managed_default_content_settings.media_stream": 2})
 
 
 parser = argparse.ArgumentParser(description='Start up a tool that checks for updates to the PSU COVID Dashboard.')
 parser.add_argument("--test-mode", default=False, action="store_true" , help="Generate a random value for overall_total_positive, and send an email, but do not update database")
+parser.add_argument("--run-once", default=False, action="store_true" , help="Run one time, then quit. In other words, don't loop")
+parser.add_argument("--chromedriver-path", "-driverpath", default='./chromedriver', help="location of chromedriver")
+parser.add_argument("--sendgrid-api-key-file", "-sendgrid-key-file", default ='../sendgrid_api_key_file', help="location of file containing sendgrid api key")
 args = parser.parse_args()
 test_mode = args.test_mode
+run_once = args.run_once
+driverpath = args.chromedriver_path
+sendgrid_api_key_file = args.sendgrid_api_key_file
+sendgrid_api_key = ''
+
+try:
+    f = open(sendgrid_api_key_file, "r")
+    sendgrid_api_key = f.read()
+    f.close()
+except:
+    print("Could not find sendgrid_api_key. Quitting.")
+    quit()
 
 if (test_mode):
-    sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '\n*** Running in test mode ***\n')
+    sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '*** Running in test mode ***')
     print(Style.RESET_ALL)
 
-# create a database connection
-conn = create_connection()
-cur = conn.cursor()
+if (run_once):
+    sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '*** Just running once ***')
+    print(Style.RESET_ALL)
 
-url ='https://app.powerbi.com/view?r=eyJrIjoiMDFhMzI2YzQtNmQwNC00YjgzLWFjMzAtZmFlNGQyZGZiZGJhIiwidCI6IjdjZjQ4ZDQ1LTNkZGItNDM4OS1hOWMxLWMxMTU1MjZlYjUyZSIsImMiOjF9'
+
+
 
 loop_number = 0
+err_count = 0
 
 while 1:
     loop_number = loop_number + 1
     now = datetime.now()
     dt_string = now.strftime("%Y-%m-%d %I:%M:%S %p")
 
-    query_string = "select overall_total_positive from covid_data order by update_time desc limit 1"
-    last_recorded_overall_total_positive = int(cur.execute(query_string).fetchone()[0])
-
-
-    driver = webdriver.Chrome(executable_path=executable_path, options=options)
-    driver.get(url)
-    time.sleep(5)
-
-    iframe_list =  driver.find_elements_by_tag_name("iframe")
+    last_recorded_overall_total_positive = get_last_recorded_overall_total_positive()
 
     try:
+        driver = webdriver.Chrome(executable_path=driverpath, options=options)
+        driver.get(settings.url)
+        time.sleep(5)
+
+        iframe_list =  driver.find_elements_by_tag_name("iframe")
         number_list = []
         for i in iframe_list:
             driver.switch_to.frame(i)
@@ -143,42 +100,42 @@ while 1:
             time.sleep(.25)
             driver.switch_to.default_content()
 
+        driver.close()
         driver.quit()
-        overall_total_positive = int(number_list[10])
-        overall_current_active = number_list[12]
-        overall_cases_no_longer_active = number_list[11]
-        overall_persons_currently_in_quarantine = number_list[7]
-        overall_persons_currently_in_isolation = number_list[8]
-        ondemand_total_tests_performed = number_list[2]
-        ondemand_total_positive_cases = number_list[1]
-        ondemand_total_awaiting_results = number_list[0]
-        random_total_tests_performed = number_list[5]
-        random_total_positive_cases = number_list[4]
-        random_total_awaiting_results = number_list[3]
+
+        dataDictionary = {}
+        dataDictionary['overall_total_positive'] = int(number_list[10])
+        dataDictionary['overall_current_active'] = int(number_list[12])
+        dataDictionary['overall_cases_no_longer_active'] = int(number_list[11])
+        dataDictionary['overall_persons_currently_in_quarantine'] = int(number_list[7])
+        dataDictionary['overall_persons_currently_in_isolation'] = int(number_list[8])
+        dataDictionary['ondemand_total_tests_performed'] = int(number_list[2])
+        dataDictionary['ondemand_total_positive_cases'] = int(number_list[1])
+        dataDictionary['ondemand_total_awaiting_results'] = int(number_list[0])
+        dataDictionary['random_total_tests_performed'] = int(number_list[5])
+        dataDictionary['random_total_positive_cases'] = int(number_list[4])
+        dataDictionary['random_total_awaiting_results'] = int(number_list[3])
 
         if (test_mode):
-            overall_total_positive = random.randint(1000000000,9999999999)
+            dataDictionary['overall_total_positive'] = random.randint(1000000000,9999999999)
 
-        if (overall_total_positive != last_recorded_overall_total_positive):
-            print("Overall total positive: ", overall_total_positive)
+        if (dataDictionary['overall_total_positive'] != last_recorded_overall_total_positive):
+            print("Overall total positive: ", dataDictionary['overall_total_positive'])
             print("Last recorded: ", last_recorded_overall_total_positive)
             if (not test_mode):
-                update_database()
-            send_email_update()
-            print_updated_numbers()
+                update_database(dataDictionary)
+            send_email_update(test_mode, dataDictionary['overall_total_positive'], sendgrid_api_key)
+            print_updated_numbers(dataDictionary)
         else:
-            if (datetime.today().weekday() == 1 or datetime.today().weekday() == 4): #check if today is Tuesday or Friday
-                sys.stdout.write('%s (loop number %s): overall_total_positive is still %s.\r' % (dt_string, str(loop_number), overall_total_positive))
-                sys.stdout.flush()
-            else:
-                sys.stdout.write('%s (loop number %s): overall_total_positive is still %s. It\'s not dashboard update day; waiting 2 minutes.\r' % (dt_string, str(loop_number), overall_total_positive))
-                sys.stdout.flush()
-                time.sleep(120)
+            success_rate = percentage = "{:.2%}".format(loop_number / (loop_number + err_count))
+            sys.stdout.write('%s (loop number %s): overall_total_positive is still %s (success rate = %s)\r' % (dt_string, str(loop_number), dataDictionary['overall_total_positive'], success_rate))
+            sys.stdout.flush()
+            if (run_once):
+                print("\nGoodbye.")
+                break
+            time.sleep(30)
 
     except Exception as e:
-        sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s' % (dt_string, e))
+        err_count = err_count + 1
+        sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s (err_count = %i)' % (dt_string, e, err_count))
         print(Style.RESET_ALL)
-
-
-
-
