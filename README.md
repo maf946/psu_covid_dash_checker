@@ -4,8 +4,8 @@ This project will scrape the most important data from the dashboard. Over time, 
 
 Current output, as of 2020-09-22 19:24 ET:
 
-overall_total_positive                  2123                             
-overall_current_active                  819                                    
+overall_total_positive									2123                             
+overall_current_active									819                                    
 overall_cases_no_longer_active          1304                                   
 overall_persons_currently_in_quarantine 57                                     
 overall_persons_currently_in_isolation  143                                    
