@@ -4,21 +4,14 @@ This project will scrape the most important data from the dashboard. Over time, 
 
 Current output, as of 2020-09-22 19:24 ET:
 
-## Overall Numbers
-* Total Positive Cases:  1,665
-* Current Active Cases:  613
-* Cases No Longer Active:  1,052
-* Persons Currently in Quarantine:  58
-* Persons Currently in Isolation:  111
-
-## On-Demand Testing
-
-* Total Tests Performed:  8,308
-* Total Positive Cases:  1,457
-* Total Awaiting Results:  364
-
-## Random Testing
-
-* Total Tests Performed:  15,237
-* Total Positive Cases:  208
-* Total Awaiting Results:  389
+overall_total_positive                  2123                             
+overall_current_active                  819                                    
+overall_cases_no_longer_active          1304                                   
+overall_persons_currently_in_quarantine 57                                     
+overall_persons_currently_in_isolation  143                                    
+ondemand_total_tests_performed          10558                                  
+ondemand_total_positive_cases           1892                                   
+ondemand_total_awaiting_results         515                                    
+random_total_tests_performed            17425                                  
+random_total_positive_cases             231                                    
+random_total_awaiting_results           458 
