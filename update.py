@@ -1,6 +1,6 @@
 # TODO: add GitHub on DigitalOcean
 # TODO: sqlite: include statements to create the table IF NOT EXISTS
-# TODO: save a screenshot on update, and include it in the email
+# TODO: attach screenshot.png to email
 # TODO: check RAM history and see if I can move to droplet with less RAM
 # TODO: fix so you can run both test-mode and run-once
 
@@ -100,6 +100,7 @@ while 1:
             time.sleep(.25)
             driver.switch_to.default_content()
 
+        driver.save_screenshot("screenshot.png")
         driver.close()
         driver.quit()
 
@@ -138,4 +139,5 @@ while 1:
     except Exception as e:
         err_count = err_count + 1
         sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s (err_count = %i)' % (dt_string, e, err_count))
+        time.sleep(30)
         print(Style.RESET_ALL)
