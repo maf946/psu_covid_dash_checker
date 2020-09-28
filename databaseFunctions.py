@@ -1,24 +1,26 @@
 import sqlite3
 
+
 def create_connection():
     try:
         conn = sqlite3.connect('psu_covid_dash_checker.sqlite3')
         return conn
-    except:
-        print ("error connecting to db")
+    except Exception as err:
+        print("error connecting to db: ", err)
 
 
-def update_database(dataDictionary):
+def update_database(data_dictionary):
     conn = create_connection()
     cur = conn.cursor()
 
-    table='covid_data'
-    columns_string= '('+','.join(dataDictionary.keys())+')'
-    values_string = '('+','.join(map(str,dataDictionary.values()))+')'
-    sql = """INSERT INTO %s %s VALUES %s"""%(table, columns_string,values_string)
+    table = 'covid_data'
+    columns_string = '('+','.join(data_dictionary.keys())+')'
+    values_string = '('+','.join(map(str, data_dictionary.values()))+')'
+    sql = """INSERT INTO %s %s VALUES %s""" % (table, columns_string, values_string)
     cur.execute(sql)
     conn.commit()
     cur.close()
+
 
 def get_last_recorded_overall_total_positive():
     # create a database connection

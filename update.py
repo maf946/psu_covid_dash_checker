@@ -8,7 +8,7 @@ from emailFunctions import *
 from databaseFunctions import *
 from printFunctions import *
 
-#selenium imports
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
@@ -16,6 +16,7 @@ import time
 from datetime import datetime
 
 import signal
+
 
 import argparse
 
@@ -25,10 +26,12 @@ import random
 
 import sys
 
-def handler(signum, frame):
+
+def handler(_, __):
     print("\nGoodbye")
     driver.quit()
     quit()
+
 
 signal.signal(signal.SIGINT, handler)
 
@@ -44,12 +47,15 @@ options.add_experimental_option("prefs", {"profile.managed_default_content_setti
 options.add_experimental_option("prefs", {"profile.managed_default_content_settings.geolocation": 2})
 options.add_experimental_option("prefs", {"profile.managed_default_content_settings.media_stream": 2})
 
-
 parser = argparse.ArgumentParser(description='Start up a tool that checks for updates to the PSU COVID Dashboard.')
-parser.add_argument("--test-mode", default=False, action="store_true" , help="Generate a random value for overall_total_positive, and send an email, but do not update database")
-parser.add_argument("--run-once", default=False, action="store_true" , help="Run one time, then quit. In other words, don't loop")
+parser.add_argument("--test-mode", default=False, action="store_true",
+                    help="Generate a random value for overall_total_positive, "
+                         "and send an email, but do not update database")
+parser.add_argument("--run-once", default=False, action="store_true",
+                    help="Run one time, then quit. In other words, don't loop")
 parser.add_argument("--chromedriver-path", "-driverpath", default='./chromedriver', help="location of chromedriver")
-parser.add_argument("--sendgrid-api-key-file", "-sendgrid-key-file", default ='../sendgrid_api_key_file', help="location of file containing sendgrid api key")
+parser.add_argument("--sendgrid-api-key-file", "-sendgrid-key-file", default='../sendgrid_api_key_file',
+                    help="location of file containing sendgrid api key")
 args = parser.parse_args()
 test_mode = args.test_mode
 run_once = args.run_once
@@ -61,20 +67,17 @@ try:
     f = open(sendgrid_api_key_file, "r")
     sendgrid_api_key = f.read()
     f.close()
-except:
+except IOError:
     print("Could not find sendgrid_api_key. Quitting.")
     quit()
 
-if (test_mode):
+if test_mode:
     sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '*** Running in test mode ***')
     print(Style.RESET_ALL)
 
-if (run_once):
+if run_once:
     sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '*** Just running once ***')
     print(Style.RESET_ALL)
-
-
-
 
 loop_number = 0
 err_count = 0
@@ -91,12 +94,12 @@ while 1:
         driver.get(settings.url)
         time.sleep(5)
 
-        iframe_list =  driver.find_elements_by_tag_name("iframe")
+        iframe_list = driver.find_elements_by_tag_name("iframe")
         number_list = []
         for i in iframe_list:
             driver.switch_to.frame(i)
             text_list = driver.find_elements_by_tag_name("text")
-            number_list.append(text_list[0].text.replace(',', '')) #remove commas, as in the case of "1,335 cases"
+            number_list.append(text_list[0].text.replace(',', ''))  # remove commas, as in the case of "1,335 cases"
             time.sleep(.25)
             driver.switch_to.default_content()
 
@@ -104,7 +107,7 @@ while 1:
         driver.close()
         driver.quit()
 
-        dataDictionary = {}
+        dataDictionary = dict()
         dataDictionary['overall_total_positive'] = int(number_list[10])
         dataDictionary['overall_current_active'] = int(number_list[12])
         dataDictionary['overall_cases_no_longer_active'] = int(number_list[11])
@@ -117,27 +120,29 @@ while 1:
         dataDictionary['random_total_positive_cases'] = int(number_list[4])
         dataDictionary['random_total_awaiting_results'] = int(number_list[3])
 
-        if (test_mode):
-            dataDictionary['overall_total_positive'] = random.randint(1000000000,9999999999)
+        if test_mode:
+            dataDictionary['overall_total_positive'] = random.randint(1000000000, 9999999999)
 
-        if (dataDictionary['overall_total_positive'] != last_recorded_overall_total_positive):
+        if dataDictionary['overall_total_positive'] != last_recorded_overall_total_positive:
             print("Overall total positive: ", dataDictionary['overall_total_positive'])
             print("Last recorded: ", last_recorded_overall_total_positive)
-            if (not test_mode):
+            if not test_mode:
                 update_database(dataDictionary)
             send_email_update(test_mode, dataDictionary['overall_total_positive'], sendgrid_api_key)
             print_updated_numbers(dataDictionary)
         else:
             success_rate = percentage = "{:.2%}".format(loop_number / (loop_number + err_count))
-            sys.stdout.write('%s (loop number %s): overall_total_positive is still %s (success rate = %s)\r' % (dt_string, str(loop_number), dataDictionary['overall_total_positive'], success_rate))
+            sys.stdout.write('%s (loop number %s): overall_total_positive is still %s (success rate = %s)\r' % (
+                dt_string, str(loop_number), dataDictionary['overall_total_positive'], success_rate))
             sys.stdout.flush()
-            if (run_once):
+            if run_once:
                 print("\nGoodbye.")
                 break
             time.sleep(30)
 
     except Exception as e:
         err_count = err_count + 1
-        sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s (err_count = %i)' % (dt_string, e, err_count))
+        sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s (err_count = %i)' % (
+            dt_string, e, err_count))
         time.sleep(30)
         print(Style.RESET_ALL)
