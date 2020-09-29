@@ -78,7 +78,6 @@ if run_once:
     print(Style.RESET_ALL)
 
 loop_number = 0
-err_count = 0
 
 while 1:
     loop_number = loop_number + 1
@@ -101,7 +100,6 @@ while 1:
                 number_list.append(text_list[0].text.replace(',', ''))  # remove commas, as in the case of "1,335 cases"
             except IndexError:
                 number_list.append("fail")
-                err_count = err_count + 1
                 print("Hit failure here.")
 
             time.sleep(.1)
@@ -135,20 +133,16 @@ while 1:
             send_email_update(test_mode, dataDictionary['overall_total_positive'], sendgrid_api_key)
             print_updated_numbers(dataDictionary)
         else:
-            success_rate = percentage = "{:.2%}".format(loop_number / (loop_number + err_count))
             elapsed_time = time.time() - start_time
             time_per_loop = elapsed_time / loop_number
-            sys.stdout.write('%s (loop number %s): overall_total_positive is still %s (success rate = %s, %is per loop)\r' % (
-                dt_string, str(loop_number), dataDictionary['overall_total_positive'], success_rate, time_per_loop))
+            sys.stdout.write('%s: overall_total_positive is still %s (loop number %s; %is per loop)\r' % (
+                dt_string, dataDictionary['overall_total_positive'], str(loop_number), time_per_loop))
             sys.stdout.flush()
             if run_once:
                 print("\nGoodbye.")
                 break
-            # time.sleep(30)
-
     except Exception as e:
-        err_count = err_count + 1
-        sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s (err_count = %i)' % (
-            dt_string, e, err_count))
+        sys.stdout.write(Fore.RED + Back.BLACK + Style.BRIGHT + '%s: I hit an error: %s ' % (
+            dt_string, e))
         time.sleep(30)
         print(Style.RESET_ALL)
