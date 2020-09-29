@@ -38,7 +38,10 @@
 ehthumbs.db
 Thumbs.db
 
-
 # Chromedriver #
 ######################
 chromedriver
+
+# Screenshot #
+######################
+screenshot.png
