@@ -1,13 +1,9 @@
-# TODO: add GitHub on DigitalOcean
 # TODO: sqlite: include statements to create the table IF NOT EXISTS
-# TODO: attach screenshot.png to email
-# TODO: check RAM history and see if I can move to droplet with less RAM
 # TODO: fix so you can run both test-mode and run-once
 
 from emailFunctions import *
 from databaseFunctions import *
 from printFunctions import *
-
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -63,6 +59,8 @@ driverpath = args.chromedriver_path
 sendgrid_api_key_file = args.sendgrid_api_key_file
 sendgrid_api_key = ''
 
+start_time = time.time()
+
 try:
     f = open(sendgrid_api_key_file, "r")
     sendgrid_api_key = f.read()
@@ -99,8 +97,14 @@ while 1:
         for i in iframe_list:
             driver.switch_to.frame(i)
             text_list = driver.find_elements_by_tag_name("text")
-            number_list.append(text_list[0].text.replace(',', ''))  # remove commas, as in the case of "1,335 cases"
-            time.sleep(.25)
+            try:
+                number_list.append(text_list[0].text.replace(',', ''))  # remove commas, as in the case of "1,335 cases"
+            except IndexError:
+                number_list.append("fail")
+                err_count = err_count + 1
+                print("Hit failure here.")
+
+            time.sleep(.1)
             driver.switch_to.default_content()
 
         driver.save_screenshot("screenshot.png")
@@ -132,13 +136,15 @@ while 1:
             print_updated_numbers(dataDictionary)
         else:
             success_rate = percentage = "{:.2%}".format(loop_number / (loop_number + err_count))
-            sys.stdout.write('%s (loop number %s): overall_total_positive is still %s (success rate = %s)\r' % (
-                dt_string, str(loop_number), dataDictionary['overall_total_positive'], success_rate))
+            elapsed_time = time.time() - start_time
+            time_per_loop = elapsed_time / loop_number
+            sys.stdout.write('%s (loop number %s): overall_total_positive is still %s (success rate = %s, %is per loop)\r' % (
+                dt_string, str(loop_number), dataDictionary['overall_total_positive'], success_rate, time_per_loop))
             sys.stdout.flush()
             if run_once:
                 print("\nGoodbye.")
                 break
-            time.sleep(30)
+            # time.sleep(30)
 
     except Exception as e:
         err_count = err_count + 1
